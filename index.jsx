@@ -1,0 +1,577 @@
+import { useState, useEffect, useRef } from "react";
+
+const SAMPLE_TOPICS = ["Rocket Science", "Ancient Roman History", "YouTube Growth", "Quantum Physics", "Machine Learning"];
+
+const XP_PER_ITEM = 50;
+const RANK_THRESHOLDS = [
+  { name: "Novice", min: 0, color: "#6b7280" },
+  { name: "Apprentice", min: 200, color: "#3b82f6" },
+  { name: "Scholar", min: 600, color: "#8b5cf6" },
+  { name: "Expert", min: 1200, color: "#f59e0b" },
+  { name: "Master", min: 2000, color: "#ef4444" },
+  { name: "Grandmaster", min: 3000, color: "#10b981" },
+];
+
+function getRank(xp) {
+  for (let i = RANK_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (xp >= RANK_THRESHOLDS[i].min) return RANK_THRESHOLDS[i];
+  }
+  return RANK_THRESHOLDS[0];
+}
+
+function XPPopup({ xp, pos }) {
+  return (
+    <div style={{
+      position: "fixed",
+      left: pos.x,
+      top: pos.y,
+      pointerEvents: "none",
+      zIndex: 9999,
+      fontFamily: "'Space Mono', monospace",
+      fontWeight: 700,
+      fontSize: "1.1rem",
+      color: "#f59e0b",
+      textShadow: "0 0 12px #f59e0b",
+      animation: "floatUp 1.2s ease-out forwards",
+    }}>+{xp} XP</div>
+  );
+}
+
+function CategoryBlock({ category, items, checked, onToggle }) {
+  const [open, setOpen] = useState(true);
+  const done = items.filter(i => checked[i.id]).length;
+  const pct = Math.round((done / items.length) * 100);
+
+  return (
+    <div style={{
+      marginBottom: "1.2rem",
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(255,255,255,0.07)",
+      borderRadius: "12px",
+      overflow: "hidden",
+      transition: "all 0.3s",
+    }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "1rem 1.2rem",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "#e2e8f0",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{
+            fontFamily: "'Space Mono', monospace",
+            fontSize: "0.65rem",
+            color: pct === 100 ? "#10b981" : "#f59e0b",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            background: pct === 100 ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)",
+            padding: "2px 8px",
+            borderRadius: "4px",
+            border: `1px solid ${pct === 100 ? "rgba(16,185,129,0.3)" : "rgba(245,158,11,0.3)"}`,
+          }}>{done}/{items.length}</span>
+          <span style={{
+            fontFamily: "'Playfair Display', serif",
+            fontWeight: 700,
+            fontSize: "1.05rem",
+            letterSpacing: "0.01em",
+          }}>{category}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{ width: "80px", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${pct}%`,
+              background: pct === 100 ? "linear-gradient(90deg,#10b981,#34d399)" : "linear-gradient(90deg,#f59e0b,#fcd34d)",
+              borderRadius: "2px",
+              transition: "width 0.5s ease",
+              boxShadow: pct === 100 ? "0 0 8px #10b981" : "0 0 8px #f59e0b",
+            }} />
+          </div>
+          <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "0.8rem", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.3s" }}>▼</span>
+        </div>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 1.2rem 1rem", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.5rem" }}>
+          {items.map(item => (
+            <KnowledgeItem key={item.id} item={item} checked={!!checked[item.id]} onToggle={onToggle} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KnowledgeItem({ item, checked, onToggle }) {
+  const [hovered, setHovered] = useState(false);
+  const [justChecked, setJustChecked] = useState(false);
+
+  const handleClick = (e) => {
+    if (!checked) {
+      setJustChecked(true);
+      setTimeout(() => setJustChecked(false), 600);
+    }
+    onToggle(item.id, e);
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "0.6rem",
+        padding: "0.6rem 0.8rem",
+        borderRadius: "8px",
+        cursor: "pointer",
+        background: checked
+          ? "rgba(16,185,129,0.08)"
+          : hovered ? "rgba(255,255,255,0.05)" : "transparent",
+        border: checked
+          ? "1px solid rgba(16,185,129,0.2)"
+          : "1px solid transparent",
+        transition: "all 0.2s",
+        transform: justChecked ? "scale(1.03)" : "scale(1)",
+      }}
+    >
+      <div style={{
+        width: "18px",
+        height: "18px",
+        minWidth: "18px",
+        borderRadius: "4px",
+        border: checked ? "none" : "2px solid rgba(255,255,255,0.2)",
+        background: checked ? "linear-gradient(135deg,#10b981,#34d399)" : "transparent",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: "1px",
+        transition: "all 0.25s",
+        boxShadow: checked ? "0 0 10px rgba(16,185,129,0.5)" : "none",
+      }}>
+        {checked && <span style={{ color: "white", fontSize: "11px", fontWeight: 900 }}>✓</span>}
+      </div>
+      <div>
+        <div style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: "0.78rem",
+          fontWeight: 700,
+          color: checked ? "#6ee7b7" : "#e2e8f0",
+          textDecoration: checked ? "line-through" : "none",
+          textDecorationColor: "rgba(110,231,183,0.5)",
+          letterSpacing: "0.02em",
+          lineHeight: 1.3,
+        }}>{item.term}</div>
+        {item.hint && (
+          <div style={{
+            fontSize: "0.68rem",
+            color: "rgba(255,255,255,0.35)",
+            marginTop: "2px",
+            fontFamily: "'Crimson Text', serif",
+            fontStyle: "italic",
+            lineHeight: 1.3,
+          }}>{item.hint}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function KnowledgeTree() {
+  const [topic, setTopic] = useState("");
+  const [inputVal, setInputVal] = useState("");
+  const [tree, setTree] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState({});
+  const [popups, setPopups] = useState([]);
+  const [totalXP, setTotalXP] = useState(0);
+  const [achievements, setAchievements] = useState([]);
+  const [newAchievement, setNewAchievement] = useState(null);
+  const [error, setError] = useState(null);
+  const popupId = useRef(0);
+
+  const totalItems = tree ? tree.categories.reduce((s, c) => s + c.items.length, 0) : 0;
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+  const overallPct = totalItems ? Math.round((checkedCount / totalItems) * 100) : 0;
+  const rank = getRank(totalXP);
+
+  const generateTree = async (t) => {
+    setLoading(true);
+    setError(null);
+    setTree(null);
+    setChecked({});
+
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          system: `You are a knowledge architect. Given a topic, return ONLY a JSON object with this exact structure:
+{
+  "title": "Topic Name",
+  "emoji": "🚀",
+  "description": "One sentence on why this knowledge tree matters",
+  "categories": [
+    {
+      "name": "Category Name",
+      "items": [
+        { "id": "unique_id", "term": "Term or Concept", "hint": "Brief definition under 10 words" }
+      ]
+    }
+  ]
+}
+
+Rules:
+- 5-8 categories that cover the full knowledge domain
+- 6-10 items per category
+- Terms should range from absolute basics to intermediate
+- Hints should be punchy, memorable, under 10 words
+- IDs must be unique strings like "cat1_item1"
+- Return ONLY valid JSON, no markdown, no explanation`,
+          messages: [{ role: "user", content: `Build a knowledge tree for: ${t}` }],
+        }),
+      });
+
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setTree(parsed);
+      setTopic(t);
+    } catch (e) {
+      setError("Failed to generate knowledge tree. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  const handleToggle = (id, e) => {
+    const rect = e?.currentTarget?.getBoundingClientRect?.();
+    const isNowChecked = !checked[id];
+
+    setChecked(prev => ({ ...prev, [id]: isNowChecked }));
+
+    if (isNowChecked) {
+      const xp = XP_PER_ITEM;
+      setTotalXP(prev => prev + xp);
+
+      if (rect) {
+        const pid = ++popupId.current;
+        setPopups(prev => [...prev, { id: pid, xp, x: rect.left + rect.width / 2 - 30, y: rect.top - 10 }]);
+        setTimeout(() => setPopups(prev => prev.filter(p => p.id !== pid)), 1300);
+      }
+    } else {
+      setTotalXP(prev => Math.max(0, prev - XP_PER_ITEM));
+    }
+  };
+
+  // Achievement checker
+  useEffect(() => {
+    if (!tree) return;
+    const pct = totalItems ? Math.round((checkedCount / totalItems) * 100) : 0;
+    const checks = [
+      { id: "first", condition: checkedCount >= 1, label: "First Neuron", desc: "Learned your first concept!", icon: "🧠" },
+      { id: "ten", condition: checkedCount >= 10, label: "Knowledge Spark", desc: "10 concepts unlocked!", icon: "⚡" },
+      { id: "half", condition: pct >= 50, label: "Halfway There", desc: "50% of the tree mastered!", icon: "🌿" },
+      { id: "complete", condition: pct === 100, label: "Grand Master", desc: "Full topic mastered!", icon: "👑" },
+    ];
+    checks.forEach(a => {
+      if (a.condition && !achievements.includes(a.id)) {
+        setAchievements(prev => [...prev, a.id]);
+        setNewAchievement(a);
+        setTimeout(() => setNewAchievement(null), 3500);
+      }
+    });
+  }, [checkedCount, totalItems]);
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#080c14",
+      backgroundImage: `
+        radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(245,158,11,0.04) 0%, transparent 60%)
+      `,
+      fontFamily: "'Space Mono', monospace",
+      color: "#e2e8f0",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Playfair+Display:wght@700;900&family=Crimson+Text:ital@1&display=swap');
+        @keyframes floatUp { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-60px)} }
+        @keyframes slideIn { from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+        input::placeholder{color:rgba(255,255,255,0.25)!important}
+      `}</style>
+
+      {/* XP Popups */}
+      {popups.map(p => <XPPopup key={p.id} xp={p.xp} pos={p} />)}
+
+      {/* Achievement Toast */}
+      {newAchievement && (
+        <div style={{
+          position: "fixed",
+          bottom: "2rem",
+          right: "2rem",
+          background: "linear-gradient(135deg,#1e1a0e,#2d2408)",
+          border: "1px solid rgba(245,158,11,0.5)",
+          borderRadius: "12px",
+          padding: "1rem 1.4rem",
+          zIndex: 9999,
+          animation: "slideIn 0.4s ease-out",
+          boxShadow: "0 0 30px rgba(245,158,11,0.2)",
+          maxWidth: "280px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ fontSize: "2rem" }}>{newAchievement.icon}</span>
+            <div>
+              <div style={{ fontSize: "0.6rem", letterSpacing: "0.15em", color: "#f59e0b", textTransform: "uppercase", marginBottom: "2px" }}>Achievement Unlocked</div>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: "1rem", color: "#fcd34d" }}>{newAchievement.label}</div>
+              <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", marginTop: "2px" }}>{newAchievement.desc}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "2.5rem 1.5rem" }}>
+        {/* Header */}
+        <div style={{ marginBottom: "2.5rem", textAlign: "center" }}>
+          <div style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: "clamp(2rem, 5vw, 3.2rem)",
+            fontWeight: 900,
+            letterSpacing: "-0.02em",
+            background: "linear-gradient(135deg, #e2e8f0 0%, #f59e0b 50%, #e2e8f0 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            lineHeight: 1.1,
+          }}>
+            Knowledge Tree
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.75rem", letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "0.5rem" }}>
+            Map what you know. Earn what you don't.
+          </div>
+        </div>
+
+        {/* XP Bar */}
+        {totalXP > 0 && (
+          <div style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "12px",
+            padding: "0.9rem 1.2rem",
+            marginBottom: "1.5rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+          }}>
+            <div style={{
+              fontFamily: "'Playfair Display', serif",
+              fontWeight: 700,
+              color: rank.color,
+              fontSize: "0.9rem",
+              minWidth: "100px",
+              textShadow: `0 0 12px ${rank.color}`,
+            }}>{rank.name}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.min(100, (totalXP % 1000) / 10)}%`,
+                  background: `linear-gradient(90deg, ${rank.color}, white)`,
+                  borderRadius: "3px",
+                  transition: "width 0.5s ease",
+                  boxShadow: `0 0 8px ${rank.color}`,
+                }} />
+              </div>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: 700 }}>
+              {totalXP.toLocaleString()} XP
+            </div>
+          </div>
+        )}
+
+        {/* Search */}
+        <div style={{
+          display: "flex",
+          gap: "0.75rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+        }}>
+          <input
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && inputVal.trim() && generateTree(inputVal.trim())}
+            placeholder="Enter any topic... (Rocket Science, Roman History...)"
+            style={{
+              flex: 1,
+              minWidth: "200px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "10px",
+              padding: "0.9rem 1.1rem",
+              color: "#e2e8f0",
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "0.82rem",
+              outline: "none",
+              transition: "border-color 0.2s",
+            }}
+            onFocus={e => e.target.style.borderColor = "rgba(245,158,11,0.4)"}
+            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+          />
+          <button
+            onClick={() => inputVal.trim() && generateTree(inputVal.trim())}
+            disabled={loading}
+            style={{
+              background: loading ? "rgba(245,158,11,0.2)" : "linear-gradient(135deg,#d97706,#f59e0b)",
+              border: "none",
+              borderRadius: "10px",
+              padding: "0.9rem 1.5rem",
+              color: loading ? "rgba(255,255,255,0.4)" : "#080c14",
+              fontFamily: "'Space Mono', monospace",
+              fontWeight: 700,
+              fontSize: "0.8rem",
+              cursor: loading ? "not-allowed" : "pointer",
+              letterSpacing: "0.05em",
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {loading ? "Growing..." : "Build Tree →"}
+          </button>
+        </div>
+
+        {/* Quick topics */}
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
+          {SAMPLE_TOPICS.map(t => (
+            <button
+              key={t}
+              onClick={() => { setInputVal(t); generateTree(t); }}
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "6px",
+                padding: "0.35rem 0.75rem",
+                color: "rgba(255,255,255,0.5)",
+                fontFamily: "'Space Mono', monospace",
+                fontSize: "0.65rem",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                letterSpacing: "0.05em",
+              }}
+              onMouseEnter={e => { e.target.style.borderColor = "rgba(245,158,11,0.3)"; e.target.style.color = "#f59e0b"; }}
+              onMouseLeave={e => { e.target.style.borderColor = "rgba(255,255,255,0.08)"; e.target.style.color = "rgba(255,255,255,0.5)"; }}
+            >{t}</button>
+          ))}
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ textAlign: "center", padding: "4rem 0", color: "rgba(255,255,255,0.3)" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "1rem", animation: "spin 2s linear infinite", display: "inline-block" }}>🌿</div>
+            <div style={{ fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", animation: "pulse 1.5s ease-in-out infinite" }}>
+              Mapping the knowledge domain...
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            padding: "1rem", borderRadius: "10px",
+            background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
+            color: "#fca5a5", fontSize: "0.78rem", marginBottom: "1rem"
+          }}>{error}</div>
+        )}
+
+        {/* Tree */}
+        {tree && !loading && (
+          <div>
+            {/* Topic header */}
+            <div style={{
+              marginBottom: "2rem",
+              padding: "1.5rem",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: "14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.4rem" }}>
+                  <span style={{ fontSize: "1.8rem" }}>{tree.emoji}</span>
+                  <div style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontWeight: 900,
+                    fontSize: "1.5rem",
+                    color: "#fcd34d",
+                  }}>{tree.title}</div>
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.75rem", maxWidth: "500px" }}>{tree.description}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{
+                  fontSize: "2rem",
+                  fontWeight: 700,
+                  fontFamily: "'Playfair Display', serif",
+                  color: overallPct === 100 ? "#10b981" : "#f59e0b",
+                  textShadow: `0 0 20px ${overallPct === 100 ? "#10b981" : "#f59e0b"}`,
+                }}>{overallPct}%</div>
+                <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em" }}>
+                  {checkedCount}/{totalItems} MASTERED
+                </div>
+              </div>
+            </div>
+
+            {/* Categories */}
+            {tree.categories.map((cat, i) => (
+              <CategoryBlock
+                key={i}
+                category={cat.name}
+                items={cat.items}
+                checked={checked}
+                onToggle={handleToggle}
+              />
+            ))}
+
+            {/* Completed state */}
+            {overallPct === 100 && (
+              <div style={{
+                textAlign: "center",
+                padding: "3rem 1rem",
+                background: "rgba(16,185,129,0.05)",
+                border: "1px solid rgba(16,185,129,0.2)",
+                borderRadius: "14px",
+                marginTop: "1.5rem",
+              }}>
+                <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>👑</div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: "1.8rem", color: "#10b981", textShadow: "0 0 20px #10b981" }}>
+                  Full Mastery Achieved
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.78rem", marginTop: "0.5rem" }}>
+                  You've unlocked the complete {tree.title} knowledge tree.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
