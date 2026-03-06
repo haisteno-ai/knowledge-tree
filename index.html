@@ -7,60 +7,122 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Playfair+Display:wght@700;900&family=Crimson+Text:ital@1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { min-height: 100%; }
-    body { background: #080c14; }
-    @keyframes floatUp  { 0%{opacity:1;transform:translateY(0)}   100%{opacity:0;transform:translateY(-60px)} }
-    @keyframes slideIn  { from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
-    @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:0.5} }
-    @keyframes spin     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-    @keyframes fadeIn   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-    ::-webkit-scrollbar { width: 5px; }
+    body { background: #0a0d13; font-family: 'DM Sans', sans-serif; color: #dde1ea; }
+
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-    input::placeholder { color: rgba(255,255,255,0.25) !important; }
-    .item-row:hover   { background: rgba(255,255,255,0.05) !important; cursor: pointer; }
-    .quick-btn:hover  { border-color: rgba(245,158,11,0.3) !important; color: #f59e0b !important; }
-    .build-btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
-    .cat-btn:hover    { background: rgba(255,255,255,0.03) !important; }
-    .key-btn:hover    { border-color: rgba(245,158,11,0.3) !important; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+    @keyframes floatUp   { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-70px) scale(1.2)} }
+    @keyframes slideUp   { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+    @keyframes slideIn   { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes pulse     { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    @keyframes spin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    @keyframes fadeIn    { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes shimmer   { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes glow      { 0%,100%{box-shadow:0 0 20px rgba(99,205,150,0.2)} 50%{box-shadow:0 0 40px rgba(99,205,150,0.5)} }
+    @keyframes nextPulse { 0%,100%{border-color:rgba(99,205,150,0.2)} 50%{border-color:rgba(99,205,150,0.5)} }
+    @keyframes treeSway  { 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
+
+    input:focus { outline: none; }
+    input::placeholder { color: rgba(255,255,255,0.2) !important; }
+
+    .item-row:hover     { background: rgba(255,255,255,0.04) !important; cursor: pointer; }
+    .quick-btn:hover    { border-color: rgba(99,205,150,0.4) !important; color: #63cd96 !important; background: rgba(99,205,150,0.06) !important; }
+    .build-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,205,150,0.25); }
+    .cat-btn:hover      { background: rgba(255,255,255,0.02) !important; }
+    .next-item:hover    { background: rgba(99,205,150,0.08) !important; border-color: rgba(99,205,150,0.35) !important; transform: translateX(3px); }
+    .tab-btn:hover      { color: #dde1ea !important; }
+    .deepdive-btn:hover { background: rgba(99,205,150,0.1) !important; color: #63cd96 !important; border-color: rgba(99,205,150,0.3) !important; }
+    .cat-card:hover     { border-color: rgba(99,205,150,0.2) !important; background: rgba(99,205,150,0.04) !important; }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="module">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 const e = React.createElement;
 
-const SAMPLE_TOPICS = ["Rocket Science","Ancient Roman History","YouTube Growth","Quantum Physics","Chess Strategy"];
+/* ─────────────────────────────────────────────────────────────
+   AI LAYER — Pollinations.ai
+   100% free · no API key · no signup · powered by GPT-4o
+   ───────────────────────────────────────────────────────────── */
+async function ai(systemPrompt, userPrompt) {
+  const attempts = [
+    { url: "https://text.pollinations.ai/openai", model: "openai-large" },
+    { url: "https://text.pollinations.ai/openai", model: "openai" },
+    { url: "https://text.pollinations.ai/openai", model: "mistral" },
+  ];
+  let lastErr = "";
+  for (const { url, model } of attempts) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user",   content: userPrompt   },
+          ],
+          seed: Math.floor(Math.random() * 9999),
+        }),
+      });
+      if (!res.ok) { lastErr = `HTTP ${res.status} (${model})`; continue; }
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content || "";
+      if (!text) { lastErr = `Empty response (${model})`; continue; }
+      return text.trim();
+    } catch(err) {
+      lastErr = err.message;
+    }
+  }
+  throw new Error(`AI unavailable. Last error: ${lastErr}`);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CONSTANTS
+   ───────────────────────────────────────────────────────────── */
+const SAMPLE_TOPICS = [
+  "Quantum Physics", "Chess Strategy", "Machine Learning",
+  "Ancient Rome", "Jazz Theory", "Stoic Philosophy", "Neuroscience",
+];
 const XP_PER_ITEM = 50;
 const RANKS = [
-  { name:"Novice",      min:0,    color:"#6b7280" },
-  { name:"Apprentice",  min:200,  color:"#3b82f6" },
-  { name:"Scholar",     min:600,  color:"#8b5cf6" },
-  { name:"Expert",      min:1200, color:"#f59e0b" },
-  { name:"Master",      min:2000, color:"#ef4444" },
-  { name:"Grandmaster", min:3000, color:"#10b981" },
+  { name:"Seedling",    min:0,    color:"#6b7280", icon:"🌱" },
+  { name:"Sprout",      min:200,  color:"#3b82f6", icon:"🌿" },
+  { name:"Scholar",     min:600,  color:"#8b5cf6", icon:"📖" },
+  { name:"Expert",      min:1200, color:"#f59e0b", icon:"⭐" },
+  { name:"Master",      min:2000, color:"#ef4444", icon:"🔥" },
+  { name:"Grandmaster", min:3000, color:"#63cd96", icon:"👑" },
 ];
 const getRank = xp => [...RANKS].reverse().find(r => xp >= r.min) || RANKS[0];
 
+/* ─────────────────────────────────────────────────────────────
+   XP POPUP
+   ───────────────────────────────────────────────────────────── */
 function XPPopup({ xp, pos }) {
   return e("div", {
     style:{
       position:"fixed", left:pos.x, top:pos.y, pointerEvents:"none", zIndex:9999,
-      fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:"1.1rem",
-      color:"#f59e0b", textShadow:"0 0 12px #f59e0b",
-      animation:"floatUp 1.2s ease-out forwards",
+      fontFamily:"'DM Mono',monospace", fontWeight:500, fontSize:"1rem",
+      color:"#63cd96", textShadow:"0 0 16px rgba(99,205,150,0.8)",
+      animation:"floatUp 1.3s ease-out forwards",
     }
   }, `+${xp} XP`);
 }
 
-function KnowledgeItem({ item, checked, onToggle }) {
+/* ─────────────────────────────────────────────────────────────
+   KNOWLEDGE ITEM
+   ───────────────────────────────────────────────────────────── */
+function KnowledgeItem({ item, checked, onToggle, isNext, onDeepDive }) {
   const [burst, setBurst] = useState(false);
   const click = ev => {
-    if (!checked) { setBurst(true); setTimeout(() => setBurst(false), 600); }
+    if (!checked) { setBurst(true); setTimeout(() => setBurst(false), 500); }
     onToggle(item.id, ev);
   };
   return e("div", {
@@ -68,45 +130,62 @@ function KnowledgeItem({ item, checked, onToggle }) {
     onClick: click,
     style:{
       display:"flex", alignItems:"flex-start", gap:"0.6rem",
-      padding:"0.6rem 0.8rem", borderRadius:"8px",
-      background: checked ? "rgba(16,185,129,0.08)" : "transparent",
-      border: checked ? "1px solid rgba(16,185,129,0.2)" : "1px solid transparent",
+      padding:"0.55rem 0.8rem", borderRadius:"8px",
+      background: checked ? "rgba(99,205,150,0.07)" : isNext ? "rgba(99,205,150,0.03)" : "transparent",
+      border: checked ? "1px solid rgba(99,205,150,0.18)" : isNext ? "1px solid rgba(99,205,150,0.1)" : "1px solid transparent",
       transition:"all 0.2s",
-      transform: burst ? "scale(1.03)" : "scale(1)",
+      transform: burst ? "scale(1.02)" : "scale(1)",
     }
   },
+    /* Checkbox */
     e("div", {
       style:{
-        width:"18px", height:"18px", minWidth:"18px", borderRadius:"4px",
-        border: checked ? "none" : "2px solid rgba(255,255,255,0.2)",
-        background: checked ? "linear-gradient(135deg,#10b981,#34d399)" : "transparent",
+        width:"16px", height:"16px", minWidth:"16px", borderRadius:"4px",
+        border: checked ? "none" : "1.5px solid rgba(255,255,255,0.15)",
+        background: checked ? "linear-gradient(135deg,#63cd96,#34d399)" : "transparent",
         display:"flex", alignItems:"center", justifyContent:"center",
-        marginTop:"1px", transition:"all 0.25s",
-        boxShadow: checked ? "0 0 10px rgba(16,185,129,0.5)" : "none",
-        flexShrink:0,
+        marginTop:"2px", transition:"all 0.25s", flexShrink:0,
+        boxShadow: checked ? "0 0 10px rgba(99,205,150,0.4)" : "none",
       }
-    }, checked ? e("span",{style:{color:"white",fontSize:"11px",fontWeight:900}},"✓") : null),
-    e("div", null,
+    }, checked ? e("span",{style:{color:"#0a0d13",fontSize:"9px",fontWeight:900}},"✓") : null),
+
+    /* Text */
+    e("div", { style:{ flex:1, minWidth:0 } },
       e("div", {
         style:{
-          fontFamily:"'Space Mono',monospace", fontSize:"0.78rem", fontWeight:700,
-          color: checked ? "#6ee7b7" : "#e2e8f0",
+          fontFamily:"'DM Mono',monospace", fontSize:"0.76rem", fontWeight:500,
+          color: checked ? "rgba(99,205,150,0.65)" : "#dde1ea",
           textDecoration: checked ? "line-through" : "none",
-          textDecorationColor:"rgba(110,231,183,0.5)",
-          letterSpacing:"0.02em", lineHeight:1.3,
+          textDecorationColor:"rgba(99,205,150,0.4)", lineHeight:1.4,
         }
       }, item.term),
       item.hint ? e("div", {
         style:{
-          fontSize:"0.68rem", color:"rgba(255,255,255,0.35)", marginTop:"2px",
-          fontFamily:"'Crimson Text',serif", fontStyle:"italic", lineHeight:1.3,
+          fontSize:"0.67rem", color:"rgba(255,255,255,0.28)", marginTop:"1px",
+          fontFamily:"'Fraunces',serif", fontStyle:"italic", lineHeight:1.3,
         }
       }, item.hint) : null
-    )
+    ),
+
+    /* Explain button */
+    !checked ? e("button", {
+      className:"deepdive-btn",
+      onClick: ev => { ev.stopPropagation(); onDeepDive(item); },
+      title:"Get an explanation",
+      style:{
+        background:"transparent", border:"1px solid rgba(255,255,255,0.07)",
+        borderRadius:"5px", padding:"2px 8px", color:"rgba(255,255,255,0.22)",
+        fontFamily:"'DM Mono',monospace", fontSize:"0.58rem", cursor:"pointer",
+        transition:"all 0.2s", flexShrink:0, marginTop:"1px", whiteSpace:"nowrap",
+      }
+    }, "explain") : null
   );
 }
 
-function CategoryBlock({ category, items, checked, onToggle }) {
+/* ─────────────────────────────────────────────────────────────
+   CATEGORY BLOCK
+   ───────────────────────────────────────────────────────────── */
+function CategoryBlock({ category, items, checked, onToggle, nextIds, onDeepDive }) {
   const [open, setOpen] = useState(true);
   const done = items.filter(i => checked[i.id]).length;
   const pct  = Math.round((done / items.length) * 100);
@@ -114,10 +193,10 @@ function CategoryBlock({ category, items, checked, onToggle }) {
 
   return e("div", {
     style:{
-      marginBottom:"1.2rem",
-      background:"rgba(255,255,255,0.03)",
-      border:"1px solid rgba(255,255,255,0.07)",
-      borderRadius:"12px", overflow:"hidden",
+      marginBottom:"0.65rem",
+      background:"rgba(255,255,255,0.02)",
+      border:`1px solid ${gold ? "rgba(99,205,150,0.22)" : "rgba(255,255,255,0.05)"}`,
+      borderRadius:"12px", overflow:"hidden", transition:"border-color 0.4s",
     }
   },
     e("button", {
@@ -125,198 +204,305 @@ function CategoryBlock({ category, items, checked, onToggle }) {
       onClick:() => setOpen(o => !o),
       style:{
         width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
-        padding:"1rem 1.2rem", background:"none", border:"none", cursor:"pointer", color:"#e2e8f0",
+        padding:"0.85rem 1.1rem", background:"none", border:"none", cursor:"pointer", color:"#dde1ea",
       }
     },
-      e("div", { style:{ display:"flex", alignItems:"center", gap:"0.75rem" } },
+      e("div", { style:{ display:"flex", alignItems:"center", gap:"0.65rem" } },
         e("span", {
           style:{
-            fontFamily:"'Space Mono',monospace", fontSize:"0.65rem",
-            color: gold ? "#10b981" : "#f59e0b", letterSpacing:"0.12em", textTransform:"uppercase",
-            background: gold ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)",
-            padding:"2px 8px", borderRadius:"4px",
-            border:`1px solid ${gold?"rgba(16,185,129,0.3)":"rgba(245,158,11,0.3)"}`,
+            fontFamily:"'DM Mono',monospace", fontSize:"0.6rem", letterSpacing:"0.06em",
+            color: gold ? "#63cd96" : "rgba(255,255,255,0.35)",
+            background: gold ? "rgba(99,205,150,0.1)" : "rgba(255,255,255,0.04)",
+            padding:"2px 7px", borderRadius:"4px",
+            border:`1px solid ${gold ? "rgba(99,205,150,0.25)" : "rgba(255,255,255,0.07)"}`,
           }
         }, `${done}/${items.length}`),
-        e("span", {
-          style:{
-            fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:"1.05rem",
-          }
-        }, category)
+        e("span", { style:{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:"1rem", letterSpacing:"-0.01em" } }, category),
+        gold ? e("span", {style:{fontSize:"0.8rem"}}, "✨") : null
       ),
-      e("div", { style:{ display:"flex", alignItems:"center", gap:"1rem" } },
-        e("div", {
-          style:{ width:"80px", height:"4px", background:"rgba(255,255,255,0.1)", borderRadius:"2px", overflow:"hidden" }
-        },
+      e("div", { style:{ display:"flex", alignItems:"center", gap:"0.75rem" } },
+        e("div", { style:{ width:"70px", height:"3px", background:"rgba(255,255,255,0.07)", borderRadius:"2px", overflow:"hidden" } },
           e("div", {
             style:{
-              height:"100%", width:`${pct}%`,
-              background: gold ? "linear-gradient(90deg,#10b981,#34d399)" : "linear-gradient(90deg,#f59e0b,#fcd34d)",
-              borderRadius:"2px", transition:"width 0.5s ease",
-              boxShadow: gold ? "0 0 8px #10b981" : "0 0 8px #f59e0b",
+              height:"100%", width:`${pct}%`, borderRadius:"2px", transition:"width 0.5s ease",
+              background: gold ? "linear-gradient(90deg,#63cd96,#34d399)" : "linear-gradient(90deg,#3b82f6,#8b5cf6)",
+              boxShadow: gold ? "0 0 6px rgba(99,205,150,0.5)" : "none",
             }
           })
         ),
         e("span", {
-          style:{
-            color:"rgba(255,255,255,0.3)", fontSize:"0.8rem", display:"inline-block",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)", transition:"transform 0.3s",
-          }
+          style:{ color:"rgba(255,255,255,0.2)", fontSize:"0.7rem", transform: open?"rotate(180deg)":"rotate(0deg)", transition:"transform 0.3s" }
         }, "▼")
       )
     ),
     open ? e("div", {
       style:{
-        padding:"0 1.2rem 1rem",
-        display:"grid",
-        gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",
-        gap:"0.5rem",
+        padding:"0 0.9rem 0.9rem",
+        display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:"0.3rem",
       }
     }, items.map(item =>
-      e(KnowledgeItem, { key:item.id, item, checked:!!checked[item.id], onToggle })
+      e(KnowledgeItem, { key:item.id, item, checked:!!checked[item.id], onToggle, isNext:nextIds?.has(item.id), onDeepDive })
     )) : null
   );
 }
 
-function ApiKeyModal({ onSave }) {
-  const [val, setVal] = useState("");
-  const valid = val.trim().startsWith("sk-");
+/* ─────────────────────────────────────────────────────────────
+   NEXT TO LEARN PANEL
+   ───────────────────────────────────────────────────────────── */
+function NextToLearnPanel({ nextItems, checked, onToggle }) {
+  if (!nextItems?.length) return null;
   return e("div", {
     style:{
-      position:"fixed", inset:0, background:"rgba(0,0,0,0.85)",
-      display:"flex", alignItems:"center", justifyContent:"center",
-      zIndex:10000, padding:"1rem",
+      background:"rgba(99,205,150,0.04)", border:"1px solid rgba(99,205,150,0.18)",
+      borderRadius:"12px", padding:"1.1rem 1.2rem", marginBottom:"1.2rem",
+      animation:"nextPulse 3s ease-in-out infinite",
     }
   },
-    e("div", {
-      style:{
-        background:"#0f1520",
-        border:"1px solid rgba(245,158,11,0.3)",
-        borderRadius:"16px", padding:"2rem", maxWidth:"420px", width:"100%",
-        boxShadow:"0 0 60px rgba(245,158,11,0.1)",
-        animation:"fadeIn 0.3s ease-out",
-      }
-    },
-      e("div",{style:{fontSize:"2rem",textAlign:"center",marginBottom:"0.75rem"}},"🔑"),
-      e("div",{
+    e("div", { style:{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"0.9rem" } },
+      e("span", {style:{fontSize:"1rem"}}, "🎯"),
+      e("span", {
         style:{
-          fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.4rem",
-          color:"#fcd34d", textAlign:"center", marginBottom:"0.5rem",
+          fontFamily:"'DM Mono',monospace", fontSize:"0.62rem", fontWeight:500,
+          color:"#63cd96", letterSpacing:"0.1em", textTransform:"uppercase",
         }
-      },"Add your API Key"),
-      e("p",{
-        style:{
-          color:"rgba(255,255,255,0.4)", fontSize:"0.72rem", textAlign:"center",
-          lineHeight:1.8, marginBottom:"1.5rem", fontFamily:"'Space Mono',monospace",
-        }
-      },
-        "Knowledge Tree uses the Claude API to generate trees.", e("br"),
-        "Get a free key at ",
-        e("a",{
-          href:"https://console.anthropic.com", target:"_blank", rel:"noopener noreferrer",
-          style:{color:"#f59e0b", textDecoration:"none"},
-        },"console.anthropic.com"),
-        e("br"),
-        e("span",{style:{color:"rgba(255,255,255,0.25)"}},"Your key is stored only in your browser.")
-      ),
-      e("input",{
-        type:"password", value:val,
-        onChange: ev => setVal(ev.target.value),
-        onKeyDown: ev => ev.key==="Enter" && valid && onSave(val.trim()),
-        placeholder:"sk-ant-api03-...",
-        style:{
-          width:"100%", background:"rgba(255,255,255,0.05)",
-          border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px",
-          padding:"0.85rem 1rem", color:"#e2e8f0",
-          fontFamily:"'Space Mono',monospace", fontSize:"0.8rem",
-          outline:"none", marginBottom:"1rem", display:"block",
-        }
-      }),
-      e("button",{
-        onClick:() => valid && onSave(val.trim()),
-        style:{
-          width:"100%",
-          background: valid ? "linear-gradient(135deg,#d97706,#f59e0b)" : "rgba(255,255,255,0.05)",
-          border:"none", borderRadius:"8px", padding:"0.85rem",
-          color: valid ? "#080c14" : "rgba(255,255,255,0.3)",
-          fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:"0.82rem",
-          cursor: valid ? "pointer" : "not-allowed",
-          letterSpacing:"0.05em", transition:"all 0.2s",
-        }
-      },"Save Key & Start Learning →")
+      }, "Up Next · Your Learning Path"),
+      e("span", { style:{ marginLeft:"auto", fontFamily:"'DM Mono',monospace", fontSize:"0.6rem", color:"rgba(255,255,255,0.2)" } }, "click to mark done")
+    ),
+    e("div", {style:{display:"flex",flexDirection:"column",gap:"0.35rem"}},
+      nextItems.slice(0,5).map((item, idx) =>
+        e("div", {
+          key:item.id,
+          className:"next-item",
+          onClick: ev => onToggle(item.id, ev),
+          style:{
+            display:"flex", alignItems:"center", gap:"0.7rem",
+            padding:"0.55rem 0.75rem", borderRadius:"8px", cursor:"pointer",
+            background: checked[item.id] ? "rgba(99,205,150,0.08)" : "rgba(255,255,255,0.025)",
+            border: checked[item.id] ? "1px solid rgba(99,205,150,0.2)" : "1px solid rgba(255,255,255,0.05)",
+            transition:"all 0.2s",
+          }
+        },
+          e("span", {
+            style:{
+              fontFamily:"'DM Mono',monospace", fontSize:"0.6rem",
+              color: checked[item.id] ? "#63cd96" : "rgba(99,205,150,0.4)", minWidth:"18px", textAlign:"center",
+            }
+          }, checked[item.id] ? "✓" : `${idx+1}`),
+          e("div", {style:{flex:1}},
+            e("div", {
+              style:{
+                fontFamily:"'DM Mono',monospace", fontSize:"0.75rem",
+                color: checked[item.id] ? "rgba(99,205,150,0.6)" : "#dde1ea",
+                textDecoration: checked[item.id] ? "line-through" : "none",
+                textDecorationColor:"rgba(99,205,150,0.4)",
+              }
+            }, item.term),
+            e("div", { style:{ fontSize:"0.62rem", color:"rgba(255,255,255,0.22)", fontFamily:"'Fraunces',serif", fontStyle:"italic", marginTop:"1px" } }, item.category)
+          )
+        )
+      )
     )
   );
 }
 
+/* ─────────────────────────────────────────────────────────────
+   DEEP DIVE MODAL
+   ───────────────────────────────────────────────────────────── */
+function DeepDiveModal({ item, topic, onClose }) {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await ai(
+          "You are a brilliant teacher. Explain concepts clearly and memorably in 3–4 sentences of plain prose. No markdown, no bullet points, no headers.",
+          `Explain "${item.term}" in the context of ${topic} for someone encountering it for the first time. Include one vivid analogy or real-world example.`
+        );
+        setText(result);
+      } catch(err) {
+        setText("Couldn't load explanation right now. Try again in a moment.");
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  return e("div", {
+    onClick: onClose,
+    style:{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.82)",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      zIndex:10000, padding:"1.5rem",
+    }
+  },
+    e("div", {
+      onClick: ev => ev.stopPropagation(),
+      style:{
+        background:"#0f1520", border:"1px solid rgba(99,205,150,0.2)",
+        borderRadius:"16px", padding:"2rem", maxWidth:"500px", width:"100%",
+        boxShadow:"0 0 60px rgba(99,205,150,0.08)", animation:"slideUp 0.3s ease-out",
+      }
+    },
+      e("div", {style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:"1.2rem"}},
+        e("div", null,
+          e("div", {style:{fontFamily:"'DM Mono',monospace",fontSize:"0.58rem",color:"rgba(99,205,150,0.6)",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:"0.35rem"}}, "Quick Explanation"),
+          e("div", {style:{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:"1.25rem",color:"#dde1ea",letterSpacing:"-0.01em"}}, item.term)
+        ),
+        e("button", {
+          onClick:onClose,
+          style:{background:"none",border:"none",color:"rgba(255,255,255,0.25)",cursor:"pointer",fontSize:"1.3rem",lineHeight:1,padding:"0.2rem"}
+        }, "×")
+      ),
+      loading
+        ? e("div", null,
+            e("div", {style:{height:"4px",borderRadius:"2px",overflow:"hidden",background:"rgba(255,255,255,0.04)",marginBottom:"0.75rem"}},
+              e("div", {style:{height:"100%",width:"100%",background:"linear-gradient(90deg,transparent,rgba(99,205,150,0.4),transparent)",backgroundSize:"200% 100%",animation:"shimmer 1.5s ease-in-out infinite"}})
+            ),
+            e("div", {style:{height:"4px",borderRadius:"2px",overflow:"hidden",background:"rgba(255,255,255,0.04)",marginBottom:"0.75rem",opacity:0.6}},
+              e("div", {style:{height:"100%",width:"100%",background:"linear-gradient(90deg,transparent,rgba(99,205,150,0.3),transparent)",backgroundSize:"200% 100%",animation:"shimmer 1.5s ease-in-out infinite 0.3s"}})
+            ),
+            e("div", {style:{height:"4px",borderRadius:"2px",overflow:"hidden",background:"rgba(255,255,255,0.04)",width:"60%",opacity:0.4}},
+              e("div", {style:{height:"100%",width:"100%",background:"linear-gradient(90deg,transparent,rgba(99,205,150,0.2),transparent)",backgroundSize:"200% 100%",animation:"shimmer 1.5s ease-in-out infinite 0.6s"}})
+            )
+          )
+        : e("p", {style:{fontFamily:"'DM Sans',sans-serif",fontSize:"0.87rem",color:"rgba(255,255,255,0.62)",lineHeight:1.8,marginBottom:"1.25rem",animation:"fadeIn 0.4s ease-out"}}, text),
+      e("div", {style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
+        e("span", {style:{fontFamily:"'DM Mono',monospace",fontSize:"0.58rem",color:"rgba(255,255,255,0.18)"}}, "Powered by Pollinations.ai · 100% free"),
+        e("button", {
+          onClick:onClose,
+          style:{
+            background:"rgba(99,205,150,0.08)", border:"1px solid rgba(99,205,150,0.2)",
+            borderRadius:"8px", padding:"0.6rem 1.2rem", color:"#63cd96",
+            fontFamily:"'DM Mono',monospace", fontSize:"0.7rem", cursor:"pointer", transition:"all 0.2s",
+          }
+        }, "Got it ✓")
+      )
+    )
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ACHIEVEMENT TOAST
+   ───────────────────────────────────────────────────────────── */
+function Toast({ toast }) {
+  if (!toast) return null;
+  return e("div", {
+    style:{
+      position:"fixed", bottom:"2rem", right:"2rem",
+      background:"linear-gradient(135deg,#0d1f18,#111d14)",
+      border:"1px solid rgba(99,205,150,0.35)", borderRadius:"12px",
+      padding:"1rem 1.3rem", zIndex:9999, animation:"slideIn 0.4s ease-out",
+      boxShadow:"0 0 30px rgba(99,205,150,0.12)", maxWidth:"280px",
+    }
+  },
+    e("div", {style:{display:"flex",alignItems:"center",gap:"0.75rem"}},
+      e("span", {style:{fontSize:"1.8rem"}}, toast.icon),
+      e("div", null,
+        e("div", {style:{fontSize:"0.58rem",letterSpacing:"0.15em",color:"rgba(99,205,150,0.7)",textTransform:"uppercase",marginBottom:"2px",fontFamily:"'DM Mono',monospace"}}, "Achievement Unlocked"),
+        e("div", {style:{fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:"0.95rem",color:"#dde1ea"}}, toast.label),
+        e("div", {style:{fontSize:"0.68rem",color:"rgba(255,255,255,0.35)",marginTop:"2px"}}, toast.desc)
+      )
+    )
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   APP
+   ───────────────────────────────────────────────────────────── */
 function App() {
-  const [apiKey,        setApiKey]        = useState(() => localStorage.getItem("kt_api_key") || "");
-  const [showModal,     setShowModal]     = useState(false);
-  const [inputVal,      setInputVal]      = useState("");
-  const [tree,          setTree]          = useState(null);
-  const [loading,       setLoading]       = useState(false);
-  const [checked,       setChecked]       = useState({});
-  const [popups,        setPopups]        = useState([]);
-  const [totalXP,       setTotalXP]       = useState(0);
-  const [achievements,  setAchievements]  = useState([]);
-  const [toast,         setToast]         = useState(null);
-  const [error,         setError]         = useState(null);
+  const [inputVal,     setInputVal]     = useState("");
+  const [tree,         setTree]         = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [checked,      setChecked]      = useState({});
+  const [popups,       setPopups]       = useState([]);
+  const [totalXP,      setTotalXP]      = useState(0);
+  const [achievements, setAchievements] = useState([]);
+  const [toast,        setToast]        = useState(null);
+  const [error,        setError]        = useState(null);
+  const [deepDiveItem, setDeepDiveItem] = useState(null);
+  const [activeTab,    setActiveTab]    = useState("path");
   const pid = useRef(0);
 
-  const totalItems   = tree ? tree.categories.reduce((s,c) => s + c.items.length, 0) : 0;
+  /* Flatten all items with their category label */
+  const allItems = useMemo(() => {
+    if (!tree) return [];
+    return tree.categories.flatMap(cat =>
+      cat.items.map(item => ({ ...item, category: cat.name }))
+    );
+  }, [tree]);
+
+  const totalItems   = allItems.length;
   const checkedCount = Object.values(checked).filter(Boolean).length;
   const overallPct   = totalItems ? Math.round((checkedCount / totalItems) * 100) : 0;
   const rank         = getRank(totalXP);
 
-  const saveKey = key => {
-    localStorage.setItem("kt_api_key", key);
-    setApiKey(key);
-    setShowModal(false);
-  };
+  /* Smart ordering: prefer in-progress categories, then by order field */
+  const nextItems = useMemo(() => {
+    if (!tree) return [];
+    const unchecked = allItems.filter(i => !checked[i.id]);
+    const catProgress = {};
+    tree.categories.forEach(cat => {
+      const done = cat.items.filter(i => checked[i.id]).length;
+      catProgress[cat.name] = done / cat.items.length;
+    });
+    return [...unchecked].sort((a, b) => {
+      const scoreA = catProgress[a.category] * 100 - (a.order || 50);
+      const scoreB = catProgress[b.category] * 100 - (b.order || 50);
+      return scoreB - scoreA;
+    });
+  }, [tree, checked, allItems]);
 
-  const generateTree = async t => {
-    if (!apiKey) { setShowModal(true); return; }
-    setLoading(true); setError(null); setTree(null); setChecked({});
+  const nextIds = useMemo(() => new Set(nextItems.slice(0,5).map(i => i.id)), [nextItems]);
+
+  /* ── Generate Tree ── */
+  const generateTree = async topic => {
+    if (!topic.trim()) return;
+    setLoading(true); setError(null); setTree(null); setChecked({}); setTotalXP(0); setAchievements([]);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "x-api-key": apiKey,
-          "anthropic-version":"2023-06-01",
-          "anthropic-dangerous-direct-browser-access":"true",
-        },
-        body: JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:2000,
-          system:`You are a knowledge architect. Given a topic return ONLY a JSON object:
+      const raw = await ai(
+        `You are a knowledge architect. You ONLY output valid JSON — no markdown fences, no explanation, no preamble. Just raw JSON.`,
+        `Build a knowledge tree for the topic: "${topic}"
+
+Return this exact JSON structure:
 {
-  "title":"Topic Name",
-  "emoji":"🚀",
-  "description":"One sentence on why this matters",
-  "categories":[
+  "title": "Topic Name",
+  "emoji": "🚀",
+  "description": "One vivid sentence on why mastering this changes how you see the world",
+  "categories": [
     {
-      "name":"Category Name",
-      "items":[
-        {"id":"cat1_item1","term":"Term","hint":"Definition under 10 words"}
+      "name": "Category Name",
+      "items": [
+        { "id": "c1_i1", "term": "Concept Name", "hint": "Definition in under 10 words", "order": 1 }
       ]
     }
   ]
 }
-Rules: 5-8 categories, 6-10 items each, unique IDs, no markdown, no explanation.`,
-          messages:[{ role:"user", content:`Build a knowledge tree for: ${t}` }],
-        }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d?.error?.message || `HTTP ${res.status}`); }
-      const data  = await res.json();
-      const text  = data.content?.[0]?.text || "";
-      const clean = text.replace(/```json|```/g,"").trim();
-      setTree(JSON.parse(clean));
+
+Requirements:
+- 5 to 7 categories, arranged from foundational to advanced
+- 6 to 10 items per category
+- "order" is a global integer (1 = most fundamental across entire topic, higher = more advanced)
+- Items within each category should progress from basic to nuanced
+- IDs must be unique strings like c1_i1, c2_i3
+- Return ONLY the JSON object. Nothing else.`
+      );
+
+      // Strip any accidental markdown fences
+      const clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+      const parsed = JSON.parse(clean);
+      setTree(parsed);
+      setActiveTab("path");
     } catch(err) {
-      setError(err.message?.includes("401") ? "Invalid API key — click 🔑 to update it." : `Error: ${err.message}`);
+      if (err.message.includes("JSON")) {
+        setError("Got a bad response from AI — please try again.");
+      } else {
+        setError(err.message);
+      }
     }
     setLoading(false);
   };
 
+  /* ── Toggle item ── */
   const handleToggle = useCallback((id, ev) => {
     const rect = ev?.currentTarget?.getBoundingClientRect?.();
     setChecked(prev => {
@@ -324,9 +510,9 @@ Rules: 5-8 categories, 6-10 items each, unique IDs, no markdown, no explanation.
       if (nowChecked) {
         setTotalXP(x => x + XP_PER_ITEM);
         if (rect) {
-          const id2 = ++pid.current;
-          setPopups(p => [...p, { id:id2, xp:XP_PER_ITEM, x:rect.left+rect.width/2-30, y:rect.top-10 }]);
-          setTimeout(() => setPopups(p => p.filter(x => x.id !== id2)), 1300);
+          const uid = ++pid.current;
+          setPopups(p => [...p, { id:uid, xp:XP_PER_ITEM, x:rect.left+rect.width/2-25, y:rect.top-15 }]);
+          setTimeout(() => setPopups(p => p.filter(x => x.id !== uid)), 1400);
         }
       } else {
         setTotalXP(x => Math.max(0, x - XP_PER_ITEM));
@@ -335,14 +521,17 @@ Rules: 5-8 categories, 6-10 items each, unique IDs, no markdown, no explanation.
     });
   }, []);
 
+  /* ── Achievements ── */
   useEffect(() => {
     if (!tree) return;
-    const pct = totalItems ? Math.round((checkedCount/totalItems)*100) : 0;
+    const pct = totalItems ? Math.round((checkedCount / totalItems) * 100) : 0;
     [
-      { id:"first",    condition:checkedCount>=1,  label:"First Neuron",    desc:"Learned your first concept!",  icon:"🧠" },
-      { id:"ten",      condition:checkedCount>=10, label:"Knowledge Spark", desc:"10 concepts unlocked!",         icon:"⚡" },
-      { id:"half",     condition:pct>=50,          label:"Halfway There",   desc:"50% of the tree mastered!",     icon:"🌿" },
-      { id:"complete", condition:pct===100,        label:"Grand Master",    desc:"Full topic mastered!",          icon:"👑" },
+      { id:"first",   condition: checkedCount >= 1,  label:"First Spark",   desc:"First concept mastered!",    icon:"✨" },
+      { id:"ten",     condition: checkedCount >= 10, label:"Momentum",      desc:"10 concepts unlocked!",       icon:"⚡" },
+      { id:"quarter", condition: pct >= 25,          label:"Rooted",        desc:"25% of the tree mastered!",  icon:"🌿" },
+      { id:"half",    condition: pct >= 50,          label:"Branching Out", desc:"Halfway through the tree!",  icon:"🌳" },
+      { id:"ninety",  condition: pct >= 90,          label:"Almost There",  desc:"90% mastery reached!",       icon:"🔥" },
+      { id:"done",    condition: pct === 100,        label:"Grand Master",  desc:"Full topic mastered!",       icon:"👑" },
     ].forEach(a => {
       if (a.condition && !achievements.includes(a.id)) {
         setAchievements(p => [...p, a.id]);
@@ -352,181 +541,269 @@ Rules: 5-8 categories, 6-10 items each, unique IDs, no markdown, no explanation.
     });
   }, [checkedCount, totalItems]);
 
+  /* ─────────────────────────────────────────────────────────
+     RENDER
+     ───────────────────────────────────────────────────────── */
   return e("div", {
     style:{
-      minHeight:"100vh", background:"#080c14",
-      backgroundImage:`
-        radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.06) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 80%, rgba(245,158,11,0.04) 0%, transparent 60%)
+      minHeight:"100vh",
+      background:`
+        radial-gradient(ellipse at 15% 15%, rgba(59,130,246,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 85%, rgba(99,205,150,0.04) 0%, transparent 55%),
+        #0a0d13
       `,
-      fontFamily:"'Space Mono',monospace", color:"#e2e8f0",
     }
   },
-    showModal ? e(ApiKeyModal, { onSave:saveKey }) : null,
     popups.map(p => e(XPPopup, { key:p.id, xp:p.xp, pos:p })),
+    deepDiveItem ? e(DeepDiveModal, { item:deepDiveItem, topic:tree?.title || inputVal, onClose:()=>setDeepDiveItem(null) }) : null,
+    e(Toast, { toast }),
 
-    toast ? e("div", {
-      style:{
-        position:"fixed", bottom:"2rem", right:"2rem",
-        background:"linear-gradient(135deg,#1e1a0e,#2d2408)",
-        border:"1px solid rgba(245,158,11,0.5)",
-        borderRadius:"12px", padding:"1rem 1.4rem",
-        zIndex:9999, animation:"slideIn 0.4s ease-out",
-        boxShadow:"0 0 30px rgba(245,158,11,0.2)", maxWidth:"280px",
-      }
-    },
-      e("div",{style:{display:"flex",alignItems:"center",gap:"0.75rem"}},
-        e("span",{style:{fontSize:"2rem"}},toast.icon),
-        e("div",null,
-          e("div",{style:{fontSize:"0.6rem",letterSpacing:"0.15em",color:"#f59e0b",textTransform:"uppercase",marginBottom:"2px"}},"Achievement Unlocked"),
-          e("div",{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:"1rem",color:"#fcd34d"}},toast.label),
-          e("div",{style:{fontSize:"0.7rem",color:"rgba(255,255,255,0.5)",marginTop:"2px"}},toast.desc)
+    e("div", { style:{ maxWidth:"880px", margin:"0 auto", padding:"2.5rem 1.25rem" } },
+
+      /* ── Header ── */
+      e("div", { style:{ marginBottom:"2.5rem", textAlign:"center" } },
+        e("div", { style:{ fontSize:"2.8rem", marginBottom:"0.75rem", filter:"drop-shadow(0 0 20px rgba(99,205,150,0.35))" } }, "🌳"),
+        e("div", {
+          style:{
+            fontFamily:"'Fraunces',serif", fontWeight:900,
+            fontSize:"clamp(2rem,5vw,3rem)", letterSpacing:"-0.03em",
+            background:"linear-gradient(135deg,#dde1ea 0%,#63cd96 50%,#dde1ea 100%)",
+            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+            lineHeight:1.1, marginBottom:"0.4rem",
+          }
+        }, "Knowledge Tree"),
+        e("div", { style:{ color:"rgba(255,255,255,0.25)", fontSize:"0.7rem", letterSpacing:"0.2em", textTransform:"uppercase" } },
+          "Map what you know. Discover what's next."),
+        e("div", { style:{ marginTop:"0.6rem", display:"inline-flex", alignItems:"center", gap:"0.4rem", background:"rgba(99,205,150,0.06)", border:"1px solid rgba(99,205,150,0.15)", borderRadius:"20px", padding:"3px 10px" } },
+          e("span", { style:{ width:"6px", height:"6px", borderRadius:"50%", background:"#63cd96", boxShadow:"0 0 6px #63cd96", display:"inline-block", animation:"pulse 2s ease-in-out infinite" } }),
+          e("span", { style:{ fontFamily:"'DM Mono',monospace", fontSize:"0.6rem", color:"rgba(99,205,150,0.7)", letterSpacing:"0.06em" } }, "Free · No signup · No API key required")
         )
-      )
-    ) : null,
-
-    e("div",{ style:{ maxWidth:"900px", margin:"0 auto", padding:"2.5rem 1.5rem" } },
-
-      e("div",{ style:{ marginBottom:"2.5rem", textAlign:"center", position:"relative" } },
-        e("button",{
-          className:"key-btn",
-          onClick:()=>setShowModal(true),
-          style:{
-            position:"absolute", right:0, top:0,
-            background:"rgba(255,255,255,0.05)",
-            border:"1px solid rgba(255,255,255,0.08)",
-            borderRadius:"8px", padding:"0.4rem 0.7rem",
-            color: apiKey ? "#10b981" : "rgba(255,255,255,0.4)",
-            cursor:"pointer", fontSize:"0.75rem", transition:"all 0.2s",
-            fontFamily:"'Space Mono',monospace",
-          }
-        }, apiKey ? "🔑 Key set" : "🔑 Add Key"),
-        e("div",{
-          style:{
-            fontFamily:"'Playfair Display',serif",
-            fontSize:"clamp(2rem,5vw,3.2rem)", fontWeight:900, letterSpacing:"-0.02em",
-            background:"linear-gradient(135deg,#e2e8f0 0%,#f59e0b 50%,#e2e8f0 100%)",
-            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", lineHeight:1.1,
-          }
-        },"Knowledge Tree"),
-        e("div",{style:{color:"rgba(255,255,255,0.35)",fontSize:"0.75rem",letterSpacing:"0.2em",textTransform:"uppercase",marginTop:"0.5rem"}},
-          "Map what you know. Earn what you don't.")
       ),
 
-      totalXP > 0 ? e("div",{
+      /* ── XP Bar ── */
+      totalXP > 0 ? e("div", {
         style:{
-          background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)",
-          borderRadius:"12px", padding:"0.9rem 1.2rem", marginBottom:"1.5rem",
-          display:"flex", alignItems:"center", gap:"1rem",
+          background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)",
+          borderRadius:"12px", padding:"0.8rem 1.1rem", marginBottom:"1.25rem",
+          display:"flex", alignItems:"center", gap:"0.9rem",
         }
       },
-        e("div",{style:{fontFamily:"'Playfair Display',serif",fontWeight:700,color:rank.color,fontSize:"0.9rem",minWidth:"110px",textShadow:`0 0 12px ${rank.color}`}},rank.name),
-        e("div",{style:{flex:1}},
-          e("div",{style:{height:"6px",background:"rgba(255,255,255,0.08)",borderRadius:"3px",overflow:"hidden"}},
-            e("div",{style:{height:"100%",width:`${Math.min(100,(totalXP%1000)/10)}%`,background:`linear-gradient(90deg,${rank.color},white)`,borderRadius:"3px",transition:"width 0.5s ease",boxShadow:`0 0 8px ${rank.color}`}})
+        e("div", {style:{fontFamily:"'DM Mono',monospace",fontWeight:500,color:rank.color,fontSize:"0.8rem",minWidth:"100px",textShadow:`0 0 12px ${rank.color}`}}, `${rank.icon} ${rank.name}`),
+        e("div", {style:{flex:1}},
+          e("div", {style:{height:"4px",background:"rgba(255,255,255,0.06)",borderRadius:"2px",overflow:"hidden"}},
+            e("div", {style:{height:"100%",width:`${Math.min(100,(totalXP%1000)/10)}%`,background:`linear-gradient(90deg,${rank.color},white)`,borderRadius:"2px",transition:"width 0.5s ease",boxShadow:`0 0 6px ${rank.color}`}})
           )
         ),
-        e("div",{style:{fontSize:"0.75rem",color:"#f59e0b",fontWeight:700}},`${totalXP.toLocaleString()} XP`)
+        e("div", {style:{fontSize:"0.72rem",color:"#63cd96",fontFamily:"'DM Mono',monospace"}}, `${totalXP.toLocaleString()} XP`)
       ) : null,
 
-      e("div",{style:{display:"flex",gap:"0.75rem",marginBottom:"1rem",flexWrap:"wrap"}},
-        e("input",{
-          value:inputVal,
-          onChange:ev=>setInputVal(ev.target.value),
-          onKeyDown:ev=>ev.key==="Enter"&&inputVal.trim()&&generateTree(inputVal.trim()),
-          placeholder:"Enter any topic… (Rocket Science, Roman History…)",
+      /* ── Search ── */
+      e("div", { style:{ display:"flex", gap:"0.6rem", marginBottom:"0.8rem", flexWrap:"wrap" } },
+        e("input", {
+          value: inputVal,
+          onChange: ev => setInputVal(ev.target.value),
+          onKeyDown: ev => ev.key === "Enter" && generateTree(inputVal),
+          placeholder: "Enter any topic… (Quantum Physics, Jazz Theory, Ancient Rome…)",
           style:{
-            flex:1, minWidth:"200px", background:"rgba(255,255,255,0.04)",
-            border:"1px solid rgba(255,255,255,0.1)", borderRadius:"10px",
-            padding:"0.9rem 1.1rem", color:"#e2e8f0",
-            fontFamily:"'Space Mono',monospace", fontSize:"0.82rem", outline:"none",
+            flex:1, minWidth:"200px", background:"rgba(255,255,255,0.03)",
+            border:"1px solid rgba(255,255,255,0.08)", borderRadius:"10px",
+            padding:"0.85rem 1.1rem", color:"#dde1ea",
+            fontFamily:"'DM Mono',monospace", fontSize:"0.8rem", transition:"border-color 0.2s",
           },
-          onFocus:ev=>{ev.target.style.borderColor="rgba(245,158,11,0.4)"},
-          onBlur: ev=>{ev.target.style.borderColor="rgba(255,255,255,0.1)"},
+          onFocus: ev => { ev.target.style.borderColor = "rgba(99,205,150,0.35)"; },
+          onBlur:  ev => { ev.target.style.borderColor = "rgba(255,255,255,0.08)"; },
         }),
-        e("button",{
+        e("button", {
           className:"build-btn",
-          onClick:()=>inputVal.trim()&&generateTree(inputVal.trim()),
-          disabled:loading,
+          onClick: () => generateTree(inputVal),
+          disabled: loading || !inputVal.trim(),
           style:{
-            background:loading?"rgba(245,158,11,0.2)":"linear-gradient(135deg,#d97706,#f59e0b)",
-            border:"none", borderRadius:"10px", padding:"0.9rem 1.5rem",
-            color:loading?"rgba(255,255,255,0.4)":"#080c14",
-            fontFamily:"'Space Mono',monospace", fontWeight:700, fontSize:"0.8rem",
-            cursor:loading?"not-allowed":"pointer",
-            letterSpacing:"0.05em", transition:"all 0.2s", whiteSpace:"nowrap",
+            background: loading || !inputVal.trim() ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg,#2d9e67,#63cd96)",
+            border:"none", borderRadius:"10px", padding:"0.85rem 1.4rem",
+            color: loading || !inputVal.trim() ? "rgba(255,255,255,0.25)" : "#0a0d13",
+            fontFamily:"'DM Mono',monospace", fontWeight:500, fontSize:"0.78rem",
+            cursor: loading || !inputVal.trim() ? "not-allowed" : "pointer",
+            letterSpacing:"0.04em", transition:"all 0.2s", whiteSpace:"nowrap",
           }
-        },loading?"Growing…":"Build Tree →")
+        }, loading ? "Growing…" : "Build Tree →")
       ),
 
-      e("div",{style:{display:"flex",gap:"0.5rem",flexWrap:"wrap",marginBottom:"2rem"}},
+      /* Quick Topics */
+      e("div", { style:{ display:"flex", gap:"0.4rem", flexWrap:"wrap", marginBottom:"2rem" } },
         SAMPLE_TOPICS.map(t =>
-          e("button",{
+          e("button", {
             key:t, className:"quick-btn",
-            onClick:()=>{ setInputVal(t); generateTree(t); },
+            onClick: () => { setInputVal(t); generateTree(t); },
             style:{
-              background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)",
-              borderRadius:"6px", padding:"0.35rem 0.75rem", color:"rgba(255,255,255,0.5)",
-              fontFamily:"'Space Mono',monospace", fontSize:"0.65rem",
-              cursor:"pointer", transition:"all 0.2s", letterSpacing:"0.05em",
+              background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.06)",
+              borderRadius:"6px", padding:"0.3rem 0.65rem", color:"rgba(255,255,255,0.38)",
+              fontFamily:"'DM Mono',monospace", fontSize:"0.62rem",
+              cursor:"pointer", transition:"all 0.2s", letterSpacing:"0.03em",
             }
-          },t)
+          }, t)
         )
       ),
 
-      loading ? e("div",{style:{textAlign:"center",padding:"4rem 0",color:"rgba(255,255,255,0.3)"}},
-        e("div",{style:{fontSize:"2.5rem",marginBottom:"1rem",animation:"spin 2s linear infinite",display:"inline-block"}},"🌿"),
-        e("div",{style:{fontSize:"0.75rem",letterSpacing:"0.15em",textTransform:"uppercase",animation:"pulse 1.5s ease-in-out infinite"}},"Mapping the knowledge domain…")
+      /* Loading */
+      loading ? e("div", { style:{ textAlign:"center", padding:"4rem 0" } },
+        e("div", { style:{ fontSize:"2.5rem", marginBottom:"1rem", animation:"spin 3s linear infinite", display:"inline-block" } }, "🌿"),
+        e("div", { style:{ fontFamily:"'DM Mono',monospace", fontSize:"0.7rem", letterSpacing:"0.15em", textTransform:"uppercase", color:"rgba(255,255,255,0.28)", animation:"pulse 1.5s ease-in-out infinite" } },
+          "Mapping the knowledge domain…")
       ) : null,
 
-      error ? e("div",{
+      /* Error */
+      error ? e("div", {
         style:{
-          padding:"1rem", borderRadius:"10px", background:"rgba(239,68,68,0.08)",
-          border:"1px solid rgba(239,68,68,0.2)", color:"#fca5a5",
-          fontSize:"0.78rem", marginBottom:"1rem", fontFamily:"'Space Mono',monospace",
+          padding:"1rem 1.2rem", borderRadius:"10px", background:"rgba(239,68,68,0.07)",
+          border:"1px solid rgba(239,68,68,0.18)", color:"#fca5a5",
+          fontSize:"0.76rem", marginBottom:"1rem", fontFamily:"'DM Mono',monospace", lineHeight:1.6,
         }
-      },error) : null,
+      },
+        e("div", {style:{marginBottom:"0.4rem", fontWeight:700}}, "⚠ Couldn't build tree"),
+        error
+      ) : null,
 
-      tree && !loading ? e("div",{style:{animation:"fadeIn 0.4s ease-out"}},
-        e("div",{
+      /* ── Tree UI ── */
+      tree && !loading ? e("div", { style:{ animation:"fadeIn 0.4s ease-out" } },
+
+        /* Tree header */
+        e("div", {
           style:{
-            marginBottom:"2rem", padding:"1.5rem", background:"rgba(255,255,255,0.03)",
-            border:"1px solid rgba(255,255,255,0.07)", borderRadius:"14px",
-            display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:"1rem",
+            marginBottom:"1.25rem", padding:"1.3rem 1.5rem",
+            background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)",
+            borderRadius:"14px", display:"flex", alignItems:"center",
+            justifyContent:"space-between", flexWrap:"wrap", gap:"1rem",
           }
         },
-          e("div",null,
-            e("div",{style:{display:"flex",alignItems:"center",gap:"0.75rem",marginBottom:"0.4rem"}},
-              e("span",{style:{fontSize:"1.8rem"}},tree.emoji),
-              e("div",{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:"1.5rem",color:"#fcd34d"}},tree.title)
+          e("div", null,
+            e("div", { style:{ display:"flex", alignItems:"center", gap:"0.65rem", marginBottom:"0.3rem" } },
+              e("span", { style:{ fontSize:"1.6rem" } }, tree.emoji),
+              e("div", { style:{ fontFamily:"'Fraunces',serif", fontWeight:900, fontSize:"1.4rem", color:"#dde1ea", letterSpacing:"-0.02em" } }, tree.title)
             ),
-            e("div",{style:{color:"rgba(255,255,255,0.4)",fontSize:"0.75rem",maxWidth:"500px"}},tree.description)
+            e("div", { style:{ color:"rgba(255,255,255,0.32)", fontSize:"0.73rem", maxWidth:"480px", lineHeight:1.5 } }, tree.description)
           ),
-          e("div",{style:{textAlign:"right"}},
-            e("div",{style:{fontSize:"2rem",fontWeight:700,fontFamily:"'Playfair Display',serif",color:overallPct===100?"#10b981":"#f59e0b",textShadow:`0 0 20px ${overallPct===100?"#10b981":"#f59e0b"}`}},`${overallPct}%`),
-            e("div",{style:{fontSize:"0.65rem",color:"rgba(255,255,255,0.3)",letterSpacing:"0.1em"}},`${checkedCount}/${totalItems} MASTERED`)
+          e("div", { style:{ textAlign:"right" } },
+            e("div", {
+              style:{
+                fontSize:"2.2rem", fontWeight:900, fontFamily:"'Fraunces',serif", letterSpacing:"-0.03em",
+                color: overallPct===100 ? "#63cd96" : "#dde1ea",
+                textShadow: overallPct===100 ? "0 0 24px rgba(99,205,150,0.7)" : "none",
+              }
+            }, `${overallPct}%`),
+            e("div", { style:{ fontSize:"0.6rem", color:"rgba(255,255,255,0.25)", letterSpacing:"0.1em" } }, `${checkedCount}/${totalItems} MASTERED`)
           )
         ),
-        tree.categories.map((cat,i) =>
-          e(CategoryBlock,{ key:i, category:cat.name, items:cat.items, checked, onToggle:handleToggle })
-        ),
-        overallPct===100 ? e("div",{
+
+        /* Tabs */
+        e("div", {
           style:{
-            textAlign:"center", padding:"3rem 1rem", background:"rgba(16,185,129,0.05)",
-            border:"1px solid rgba(16,185,129,0.2)", borderRadius:"14px",
-            marginTop:"1.5rem", animation:"fadeIn 0.5s ease-out",
+            display:"flex", gap:"0.25rem", marginBottom:"1.1rem",
+            background:"rgba(255,255,255,0.02)", borderRadius:"10px", padding:"3px",
+            border:"1px solid rgba(255,255,255,0.05)",
           }
         },
-          e("div",{style:{fontSize:"3rem",marginBottom:"0.75rem"}},"👑"),
-          e("div",{style:{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:"1.8rem",color:"#10b981",textShadow:"0 0 20px #10b981"}},"Full Mastery Achieved"),
-          e("div",{style:{color:"rgba(255,255,255,0.4)",fontSize:"0.78rem",marginTop:"0.5rem"}},`You've unlocked the complete ${tree.title} knowledge tree.`)
+          [
+            { key:"path", label:"🎯  Learning Path" },
+            { key:"tree", label:"🌳  Full Tree" },
+          ].map(tab =>
+            e("button", {
+              key:tab.key, className:"tab-btn",
+              onClick: () => setActiveTab(tab.key),
+              style:{
+                flex:1, padding:"0.5rem",
+                background: activeTab===tab.key ? "rgba(99,205,150,0.08)" : "transparent",
+                border: activeTab===tab.key ? "1px solid rgba(99,205,150,0.18)" : "1px solid transparent",
+                borderRadius:"8px", color: activeTab===tab.key ? "#63cd96" : "rgba(255,255,255,0.3)",
+                fontFamily:"'DM Mono',monospace", fontSize:"0.67rem",
+                cursor:"pointer", transition:"all 0.2s", letterSpacing:"0.05em",
+              }
+            }, tab.label)
+          )
+        ),
+
+        /* Path Tab */
+        activeTab === "path" ? e("div", { style:{ animation:"fadeIn 0.3s ease-out" } },
+          overallPct < 100 ? e(NextToLearnPanel, { nextItems, checked, onToggle:handleToggle }) : null,
+          e("div", {
+            style:{
+              display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(195px,1fr))", gap:"0.5rem",
+            }
+          },
+            tree.categories.map((cat, i) => {
+              const done = cat.items.filter(item => checked[item.id]).length;
+              const pct  = Math.round((done / cat.items.length) * 100);
+              const gold = pct === 100;
+              return e("div", {
+                key:i, className:"cat-card",
+                onClick: () => setActiveTab("tree"),
+                style:{
+                  padding:"0.85rem 1rem", borderRadius:"10px", cursor:"pointer",
+                  background: gold ? "rgba(99,205,150,0.06)" : "rgba(255,255,255,0.02)",
+                  border:`1px solid ${gold ? "rgba(99,205,150,0.2)" : "rgba(255,255,255,0.05)"}`,
+                  transition:"all 0.2s",
+                }
+              },
+                e("div", { style:{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"0.45rem" } },
+                  e("div", { style:{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:"0.85rem", color: gold?"#63cd96":"#dde1ea" } }, cat.name),
+                  e("div", { style:{ fontFamily:"'DM Mono',monospace", fontSize:"0.62rem", color:"rgba(255,255,255,0.28)" } }, `${done}/${cat.items.length}`)
+                ),
+                e("div", { style:{ height:"3px", background:"rgba(255,255,255,0.06)", borderRadius:"2px", overflow:"hidden" } },
+                  e("div", {
+                    style:{
+                      height:"100%", width:`${pct}%`, borderRadius:"2px", transition:"width 0.5s ease",
+                      background: gold ? "linear-gradient(90deg,#63cd96,#34d399)" : "linear-gradient(90deg,#3b82f6,#8b5cf6)",
+                      boxShadow: gold ? "0 0 6px rgba(99,205,150,0.5)" : "none",
+                    }
+                  })
+                )
+              );
+            })
+          )
+        ) : null,
+
+        /* Tree Tab */
+        activeTab === "tree" ? e("div", { style:{ animation:"fadeIn 0.3s ease-out" } },
+          tree.categories.map((cat, i) =>
+            e(CategoryBlock, {
+              key:i, category:cat.name, items:cat.items, checked,
+              onToggle:handleToggle, nextIds, onDeepDive:setDeepDiveItem,
+            })
+          )
+        ) : null,
+
+        /* Mastery Banner */
+        overallPct === 100 ? e("div", {
+          style:{
+            textAlign:"center", padding:"3rem 1rem",
+            background:"rgba(99,205,150,0.04)", border:"1px solid rgba(99,205,150,0.18)",
+            borderRadius:"14px", marginTop:"1.5rem", animation:"glow 3s ease-in-out infinite",
+          }
+        },
+          e("div", {style:{fontSize:"3rem",marginBottom:"0.75rem"}}, "👑"),
+          e("div", {style:{fontFamily:"'Fraunces',serif",fontWeight:900,fontSize:"1.8rem",color:"#63cd96",textShadow:"0 0 24px rgba(99,205,150,0.6)",letterSpacing:"-0.02em"}}, "Full Mastery"),
+          e("div", {style:{color:"rgba(255,255,255,0.32)",fontSize:"0.76rem",marginTop:"0.5rem"}}, `You've fully mastered the ${tree.title} knowledge tree.`),
+          e("button", {
+            onClick: () => { setTree(null); setInputVal(""); setChecked({}); setTotalXP(0); },
+            style:{
+              marginTop:"1.5rem", background:"rgba(99,205,150,0.08)",
+              border:"1px solid rgba(99,205,150,0.25)", borderRadius:"8px",
+              padding:"0.65rem 1.5rem", color:"#63cd96",
+              fontFamily:"'DM Mono',monospace", fontSize:"0.72rem",
+              cursor:"pointer", transition:"all 0.2s",
+            }
+          }, "Explore a New Topic →")
         ) : null
+
       ) : null,
 
-      !tree && !loading && !error ? e("div",{style:{textAlign:"center",padding:"4rem 1rem",color:"rgba(255,255,255,0.15)"}},
-        e("div",{style:{fontSize:"3.5rem",marginBottom:"1rem",opacity:0.4}},"🌳"),
-        e("div",{style:{fontSize:"0.75rem",letterSpacing:"0.15em",textTransform:"uppercase"}},"Enter a topic above to grow your knowledge tree")
+      /* Empty State */
+      !tree && !loading && !error ? e("div", { style:{ textAlign:"center", padding:"5rem 1rem", color:"rgba(255,255,255,0.1)" } },
+        e("div", { style:{ fontSize:"4rem", marginBottom:"1rem", opacity:0.25 } },
+          e("span", { style:{ display:"inline-block", animation:"treeSway 4s ease-in-out infinite", transformOrigin:"bottom" } }, "🌱")
+        ),
+        e("div", { style:{ fontSize:"0.7rem", letterSpacing:"0.18em", textTransform:"uppercase" } }, "Enter a topic above to grow your knowledge tree")
       ) : null
+
     )
   );
 }
